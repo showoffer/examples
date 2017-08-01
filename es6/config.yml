@@ -1,0 +1,32 @@
+# Your project's server will run on localhost:xxxx at this port
+PORT: 8000
+
+# Autoprefixer will make sure your CSS works with these browsers
+COMPATIBILITY:
+  - "last 2 versions"
+  - "ie >= 9"
+  - "iOS >= 7"
+
+# Gulp will reference these paths when it copies files
+PATHS:
+  # Path to dist folder
+  dist: "dist"
+  cdn: "cdn"
+  assets: "assets/**/*"
+  # Paths to css
+  sass:
+    snippet:
+      - ""
+    widget:
+      - "bower_components/mui/src/sass"
+    iframe:
+      - "bower_components/mui/src/sass"
+  # Paths to JavaScript libraries, which are compined into one file
+  imagesSlick:
+    - "bower_components/slick-carousel/slick/**/*.{gif, jpg, png}"
+  fontsSlick:
+    - "bower_components/slick-carousel/slick/fonts/*"
+  fontawesome:
+    - "bower_components/font-awesome/fonts/*"
+  js: "js/**/*"
+  
