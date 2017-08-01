@@ -1,0 +1,118 @@
+import { Injectable } from '@angular/core';
+import { DevicesTreeService } from "../devices-tree.service";
+import { ApiService } from "../api.service";
+import { URLSearchParams } from '@angular/http';
+import * as _ from 'lodash';
+import { GridFactoryService } from "./grid-factory.service";
+import { DeviceTypesService } from "../device-types.service";
+import DEV_MAP from '../../const/DEVICE_PARAMETERS_MAP';
+import { BehaviorSubject } from "rxjs/BehaviorSubject";
+import { Observable } from "rxjs/Observable";
+import { Subject } from "rxjs/Subject";
+
+@Injectable()
+export class DevicesListService {
+  rowsAndColsSource = new BehaviorSubject([]);
+  devicesDataSource = new Subject<any[]>();
+
+  constructor(
+    private devTreeSvc: DevicesTreeService,
+    private devTypeSvc: DeviceTypesService,
+    private gridFactory: GridFactoryService,
+    private api: ApiService
+  ) { }
+
+  deliverRowsAndCols(arrayOfData) {
+    this.rowsAndColsSource.next(arrayOfData);
+  }
+
+  getRowsAndCols(): Observable<any> {
+    return this.rowsAndColsSource.asObservable();
+  }
+
+  getDevicesData(groupId?) {
+    let ids: any[] = this.devTreeSvc.getLeafProps('id', groupId);
+    if (ids.length === 0) {
+      return Observable.of([]);
+    } else {
+      return this.api.get('/devices/data', new URLSearchParams('ids=' + ids.join(',')))
+        .map(res => res['data'])
+        .catch(() => []);
+    }
+  }
+
+  // TODO: refactor this method (reduce forOwn iteration by idsDistribution; use iteration over dynamic devices data)
+  processData(data) {
+    let idsDistribution = this.distributeDevicesIdsByType();
+    let result = [];
+
+    _.forOwn(idsDistribution, (val, key) => {
+      result.push({
+        devicesType: +key,
+        devicesData: _.chain(val)
+          .map((devId) => {
+            let dynamicData = _.find(data, {deviceId: devId});
+            if (typeof dynamicData === 'undefined') return null;
+            return _.extend(_.cloneDeep(this.devTreeSvc.getTreeModel().getNodeById(devId).data), this.transformValues(dynamicData));
+          })
+          .compact()
+          .value()
+      })
+    });
+
+    let rowsAndCols = _.compact(_.map(result, (value) => {
+      if (value.devicesData.length === 0) return null;
+      value['colsConfig'] = this.gridFactory.createColumnsConfigFromData(value.devicesData);
+      value['title'] = this.devTypeSvc.getFromGroupsByTypeId(value.devicesType, 'name');
+      return value;
+    }));
+
+    this.deliverRowsAndCols(rowsAndCols);
+
+  }
+
+  distributeDevicesIdsByType() {
+    let types = this.devTreeSvc.getLeafProps('type');
+    let uniqTypes = _.compact(_.uniq(types));
+    let result = {};
+    let me = this;
+
+    _.each(uniqTypes, (typeVal) => {
+      result[typeVal] = [];
+      me.devTreeSvc.getTreeModel().doForAll((node) => {
+        if (node['data']['type'] === typeVal) {
+          result[typeVal].push(node['data']['id']);
+        }
+      });
+    });
+
+    return result;
+  }
+
+  /**
+   * Transform values to show in Grid cells
+   */
+  transformValues(defaultObj: any) {
+    let finalObj = {};
+    let preparedData = this.omitValues(defaultObj);
+    _.forOwn(preparedData, (value, key, obj) => {
+      if (typeof DEV_MAP[key] !== 'undefined') {
+        let pathArr: any[] = _.map(DEV_MAP[key]['valueConfig'], (value) => {
+          let helpObj = {};
+          helpObj['path'] = value['path'];
+          helpObj['id'] = (value['controlConfig'] && typeof value['controlConfig']['id'] !== 'undefined') ? value['controlConfig']['id'] : key;
+          return helpObj;
+        });
+        _.each(pathArr, (pathObjVal) => {
+          finalObj[pathObjVal['id']] = _.get(obj[key], _.map(pathObjVal['path'], chunk=>chunk.toString()), obj[pathObjVal['id']]);
+        });
+      }
+    });
+    return finalObj;
+  }
+
+  omitValues(obj) {
+    return _.omit(obj, ['deviceId'])
+  }
+
+}
