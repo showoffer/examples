@@ -1,0 +1,57 @@
+import { Injectable } from '@angular/core';
+import * as _ from 'lodash/fp';
+import DEV_MAP from '../../../shared/const/DEVICE_PARAMETERS_MAP';
+
+@Injectable()
+export class CellViewFactoryService {
+
+  constructor() { }
+
+  processData(prop: string, value: any) {
+    switch (prop) {
+      case 'sensors':
+        return this.processSensors(value);
+      default:
+        return this.processDefault(prop, value);
+    }
+  }
+
+  processDefault(prop, value) {
+    return this.searchValue(prop, value);
+  }
+
+  processSensors(value) {
+    return _.chain(value)
+      .map((arr) => `ID: ${arr[0]} VALUE: ${arr[2]}`)
+      .value()
+      .join(' / ');
+  }
+
+  searchValue(prop, value) {
+    const cfg = this.searchTopLevelCfg(prop) || this.deepSearchCfg(prop, _.values(DEV_MAP));
+    if (cfg) {
+      const options = cfg['options'];
+      if (options) {
+        return _.flow(_.find({value: value}))(options)['label'];
+      }
+    }
+    return value;
+  }
+
+  searchTopLevelCfg(prop) {
+    if (DEV_MAP[prop]) {
+      return _.first(DEV_MAP[prop]['valueConfig'])['controlConfig'];
+    }
+    return;
+  }
+
+  deepSearchCfg(prop: string, devMapValues: any) {
+    return _.flow(
+      _.map(val => val['valueConfig']),
+      _.flatten,
+      _.map(val => val['controlConfig']),
+      _.find({id: prop})
+    )(devMapValues)
+  }
+
+}
