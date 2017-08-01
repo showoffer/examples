@@ -1,0 +1,37 @@
+/**
+ * Created by losha on 26.8.16.
+ */
+export default {
+  /**
+   * Merge defaults with user options
+   * @private
+   * @param {Object} defaults Default settings
+   * @param {Object} options User options
+   * @returns {Object} Merged values of defaults and options
+   */
+  extend(defaults, options) {
+    var extended = {};
+    var prop;
+    for (prop in defaults) {
+      if (Object.prototype.hasOwnProperty.call(defaults, prop)) {
+        extended[prop] = defaults[prop];
+      }
+    }
+    for (prop in options) {
+      if (Object.prototype.hasOwnProperty.call(options, prop)) {
+        extended[prop] = options[prop];
+      }
+    }
+    return extended;
+  },
+  /**
+   *
+   * @param f - function which gets value
+   * @param el - target element
+   * @param dir - string value of offset direction 'top', 'right', 'bottom' or 'left'
+   * @returns {*}
+   */
+  sumUpDirOffset(f, el, dir) {
+    return f(el, 'margin-' + dir) + f(el, 'border-' + dir) + f(el, 'padding-' + dir);
+  }
+}
