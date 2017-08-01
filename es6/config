@@ -1,0 +1,51 @@
+/**
+ * Created by losha on 21.7.16.
+ */
+export default {
+  paramsFormId: 'plugin-test-form',
+  aboveTargetDivCls: 'above-target-div',
+  aboveTargetDivDesktopCls: 'hoverable',
+  aboveTargetDivMobileCls: 'show-tool',
+  adzTriggerBtnCls: 'adz-trigger-btn',
+  adzTriggerBtnText: 'Show suggestions',
+  adzImgCls: 'adz-fashion-img',
+  adzImgWrapCls: 'adz-fashion-img-wrap',
+  adzLogoWrapCls: 'adz-logo-wrap',
+  adzLogoCls: 'adz-logo',
+  adzSlideCls: 'carousel-slide',
+  adzSlidePreviewId: 'slide-preview',
+  adzSlidePreviewWrapId: 'slide-preview-wrap',
+  adzSlideTitleWrapCls: 'carousel-slide-title-wrap',
+  adzProductAnchorCls: 'carousel-slide-anchor',
+  adzGlobalConfKey: 'AdzConf',
+  mobileCls: 'mobile',
+  windowsCls: 'win',
+  firefoxCls: 'ff',
+  wpDataUrl: 'adzukiurl',
+  closeDivPostMessage: 'close-above-div',
+  statParams: {
+    eventAddUrl: '//plugin.adzukimobile.com/event/add'
+  },
+  iframeHeightMap: [
+    {
+      wrapMax: 250,
+      wrapMin: 0,
+      me: 104
+    },
+    {
+      wrapMax: 350,
+      wrapMin: 250,
+      me: 124
+    },
+    {
+      wrapMax: 450,
+      wrapMin: 350,
+      me: 154
+    },
+    {
+      wrapMax: Number.POSITIVE_INFINITY,
+      wrapMin: 450,
+      me: 194
+    }
+  ]
+}
