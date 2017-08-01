@@ -1,0 +1,195 @@
+/**
+ * Created by losha on 21.7.16.
+ */
+import isMobile from 'ismobilejs';
+import dom from './../helpers/dom';
+import funk from './../helpers/funk';
+import CONFIG from './../helpers/config';
+
+class Image {
+  constructor(src, el) {
+    this.src = src;
+    this.el = el;
+    this.recsStatus = 'pending'; // 'pending', 'loading', 'ok' or 'fail'
+    this.aboveDiv = this.createAboveDiv();
+    this.iframe = null;
+    this.logo = this.createLogo();
+  }
+  createAboveDiv() {
+    let aboveDiv = dom.createElement('div'),
+      el = this.el,
+      elWrap = el.parentNode;
+
+    dom.addClass(aboveDiv, CONFIG.aboveTargetDivCls);
+
+    if (!isMobile.any) {
+      dom.addClass(aboveDiv, CONFIG.aboveTargetDivDesktopCls);
+
+      // if IE implementing :hover polyfill
+      if (dom.getIEVersion() > 0) {
+        // set transparent bg to fix hover in IE10
+        dom.setStyles(aboveDiv, {
+          background: 'rgba(0,0,0,0)'
+        });
+        // ada listeners to implement :hover behavior
+        aboveDiv.addEventListener('mouseenter', function (e) {
+          dom.addClass(this, 'hover');
+        });
+        aboveDiv.addEventListener('mouseleave', function (e) {
+          dom.removeClass(this, 'hover');
+        });
+      }
+    } else {
+      aboveDiv.onclick = function () {
+        dom.addClass(aboveDiv, CONFIG.aboveTargetDivMobileCls);
+      };
+      window.addEventListener("message", function (e) {
+        if (e.data === CONFIG.closeDivPostMessage) {
+          dom.removeClass(aboveDiv, CONFIG.aboveTargetDivMobileCls);
+        }
+      }, false);
+    }
+
+    // append div to image element
+    if (dom.hasClass(elWrap, CONFIG.adzImgWrapCls)) {
+      dom.appendToNode(elWrap, aboveDiv);
+    }
+
+    return this.updateAboveDiv(aboveDiv);
+  }
+  updateAboveDiv(aboveDiv) {
+    if (!isMobile.any) {
+      let
+        el = this.el,
+        f = dom.getStyleValue;
+
+      dom.setStyles(aboveDiv, {
+        top: funk.sumUpDirOffset(f, el, 'top') + 'px',
+        bottom: funk.sumUpDirOffset(f, el, 'bottom') + 'px',
+        left: funk.sumUpDirOffset(f, el, 'left') + 'px',
+        right: funk.sumUpDirOffset(f, el, 'right') + 'px'
+      });
+    }
+
+    return aboveDiv;
+  }
+  createLogo() {
+    let divWrap = dom.createElement('div'),
+      div = dom.createElement('div'),
+      aboveDiv = this.aboveDiv;
+
+    divWrap.setAttribute('class', CONFIG.adzLogoWrapCls);
+    div.setAttribute('class', CONFIG.adzLogoCls);
+    dom.appendToNode(divWrap, div);
+    dom.appendToNode(aboveDiv, divWrap);
+    return div;
+  }
+  createIframe() {
+    let me = this,
+      el = dom.createElement('iframe');
+    dom.appendToNode(me.aboveDiv, el);
+    dom.setStyles(el, {
+      border: 'none',
+      height: me.calculateIframeHeight()
+    });
+    return el;
+  }
+  updateIframe(params) {
+    let me = this,
+      heightObject = {
+        height: me.calculateIframeHeight()
+      };
+
+    dom.setStyles(me.iframe, funk.extend(heightObject, params));
+    return me.iframe;
+  }
+  calculateIframeHeight() {
+
+    if (isMobile.any) {
+      return '100%';
+    }
+
+    let aboveDiv = this.aboveDiv,
+      iframe = this.iframe,
+      aboveDivHeight = aboveDiv.offsetHeight,
+      map = CONFIG.iframeHeightMap,
+      lgth = map.length,
+      returnH = 100,
+      i;
+
+    for (i = 0; i < lgth; i++) {
+      if (aboveDivHeight >= map[i].wrapMin && aboveDivHeight < map[i].wrapMax) {
+        returnH = map[i].me;
+        break;
+      }
+    }
+
+    return returnH + 'px';
+
+  }
+  startRecognize() {
+    let me = this,
+      aboveDiv = me.aboveDiv,
+      imgEl = me.el,
+      url = me.el.dataset ? me.el.dataset[CONFIG.wpDataUrl] : '';
+
+    me.recsStatus = 'loading';
+    dom.addClass(me.logo, 'spin-it');
+    me.logo.setAttribute('title', 'Loading recommendations...');
+
+    //removeIf(wp)
+    let form = dom.getById(CONFIG.paramsFormId);
+    let dataToLoad = {
+      url: me.src,
+      number: dom.getFormElValue(form, 'result-number'),
+      width: dom.getFormElValue(form, 'result-width'),
+      height: dom.getFormElValue(form, 'result-height'),
+      category: dom.getFormElValue(form, 'result-category'),
+      subcategory: dom.getFormElValue(form, 'result-subcategory'),
+      gender: dom.getFormElValue(form, 'result-gender'),
+      style: dom.getFormElValue(form, 'result-style'),
+      country: dom.getFormElValue(form, 'result-country'),
+      token: dom.getFormElValue(form, 'result-token'),
+      selections: dom.getFormElValue(form, 'result-selections')
+      
+    };
+    url = '/recognize' + dom.stringifyParams(dataToLoad);
+    //endRemoveIf(wp)
+
+    dom.ajaxGet({
+      url: url,
+      error: function () {
+        me.recsStatus = 'fail';
+        // dom.removeClass(me.logo, 'spin-it');
+        me.logo.setAttribute('title', '');
+
+        dom.getById('info').innerHTML = '<p>An error has occurred</p>';
+      },
+      success: function (data) {
+        let iframe = me.iframe = me.createIframe();
+        me.recsStatus = 'ok';
+
+        dom.clearEl(dom.getById('info'));
+
+        iframe.onload = function () {
+          // dom.removeClass(me.logo, 'spin-it');
+          me.logo.setAttribute('title', '');
+
+          dom.setStyles(iframe, {
+            opacity: 1
+          });
+        };
+        let global = null;
+        if (typeof window[CONFIG.adzGlobalConfKey] !== 'undefined') {
+          global = {
+            key: CONFIG.adzGlobalConfKey,
+            value: window[CONFIG.adzGlobalConfKey]
+          }
+        }
+        dom.writeToIframe(iframe, data, global);
+      }
+    });
+  };
+}
+
+export default Image;
