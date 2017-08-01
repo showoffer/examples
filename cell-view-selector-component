@@ -1,0 +1,27 @@
+import { Component, Input, OnInit } from '@angular/core';
+import DEV_MAP from '../../../../shared/const/DEVICE_PARAMETERS_MAP';
+import { CellViewFactoryService } from "../../../../shared/services/grid/cell-view-factory.service";
+
+@Component({
+  selector: 'app-cell-view-selector',
+  templateUrl: './cell-view-selector.component.html',
+  styleUrls: ['./cell-view-selector.component.less']
+})
+export class CellViewSelectorComponent implements OnInit {
+
+  // initValue: any;
+  displayValue: any;
+
+  @Input() value: any;
+  @Input() prop: string;
+
+  constructor(
+    private cellViewF: CellViewFactoryService
+  ) { }
+
+  ngOnInit() {
+    // this.initValue = JSON.parse(JSON.stringify(this.value));
+    this.displayValue = this.cellViewF.processData(this.prop, this.value);
+  }
+  
+}
