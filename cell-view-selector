@@ -1,0 +1,4 @@
+<div [ngSwitch]="prop">
+  <span *ngSwitchCase="'sensors'" [mdTooltip]="displayValue" [mdTooltipPosition]="'above'">Show Data</span>
+  <span *ngSwitchDefault>{{displayValue}}</span>
+</div>
