@@ -1,0 +1,136 @@
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Router } from "@angular/router";
+import { AuthService } from "../../shared/services/auth.service";
+import { DevicesTreeService } from "../../shared/services/devices-tree.service";
+import { ApiService } from "../../shared/services/api.service";
+import { NotificationService } from "../../shared/services/notification.service";
+import { TreeComponent } from "angular-tree-component";
+import { DevicesListService } from "../../shared/services/grid/devices-list.service";
+import { Subscription } from "rxjs/Subscription";
+let map = require('lodash/map');
+let each = require('lodash/each');
+
+import { Store } from '@ngrx/store';
+import { State } from '../../reducers';
+import * as treeConfig from '../../actions/treeConfig';
+import { Observable } from "rxjs/Observable";
+
+@Component({
+  selector: 'app-devices-tree',
+  templateUrl: './devices-tree.component.html',
+  styleUrls: ['./devices-tree.component.less']
+})
+export class DevicesTreeComponent implements OnInit, OnDestroy {
+
+  @ViewChild('tree')
+  tree: TreeComponent;
+
+  treeOptions;
+  nodesConfig: Observable<any>;
+  firstTimeLoad: Observable<boolean>;
+  checkAllState: boolean = true;
+
+  subscription: Subscription;
+
+  constructor(
+    private auth: AuthService,
+    private api: ApiService,
+    public devTreeSvc: DevicesTreeService,
+    private devListSvc: DevicesListService,
+    private router: Router,
+    private notify: NotificationService,
+    private store: Store<State>
+  ) {
+    let actionMapping = this.devTreeSvc.actionMapping;
+    this.treeOptions = {
+      actionMapping
+    };
+
+    this.subscription = devListSvc.devicesDataSource.debounceTime(750)
+      .distinctUntilChanged()
+      .switchMap(idsData => devListSvc.getDevicesData(idsData))
+      .subscribe(data => devListSvc.processData(data));
+
+    this.nodesConfig = store.select('treeConfig', 'nodes');
+    this.firstTimeLoad = store.select('treeConfig', 'firstTimeLoad');
+  }
+
+  ngOnInit() {
+
+  }
+
+  ngOnDestroy() {
+    this.subscription.unsubscribe();
+  }
+
+  subscribeToUpdateTreeConfig() {
+    this.nodesConfig.first().subscribe(nodes => {
+      each(nodes, (nodeCfg) => {
+        let treeNode = this.devTreeSvc.getTreeModel().getNodeById(nodeCfg.id);
+        if (typeof treeNode !== 'undefined') {
+          treeNode.data.checked = nodeCfg.checked;
+          treeNode.data.indeterminate = nodeCfg.indeterminate;
+          if (nodeCfg.isExpanded) {
+            treeNode.expand()
+          } else {
+            treeNode.collapse();
+          }
+        }
+      });
+    });
+  }
+
+  firstTimeLoadCheck() {
+    this.firstTimeLoad.first().subscribe(isFirstTime => {
+      if (isFirstTime) {
+        this.devTreeSvc.precheckAllNodes();
+        this.store.dispatch(new treeConfig.FirstTimeLoadAction());
+        this.store.dispatch(new treeConfig.UpdateNodesConfigAction(this.devTreeSvc.prepareNodesConfig()));
+      }
+    })
+  }
+
+  onInitTree() {
+    this.devTreeSvc.onInitTree(this.tree);
+
+    this.firstTimeLoadCheck();
+    this.subscribeToUpdateTreeConfig();
+    this.devListSvc.devicesDataSource.next(map(this.devTreeSvc.getCheckedNodes(), (node) => node.data.id));
+  }
+
+  onActivateNode($event) {
+    // this.check($event.node, true);
+  }
+
+  onDeactivateNode($event) {
+    // this.check($event.node, false);
+  }
+
+  onToggleExpanded() {
+    this.store.dispatch(new treeConfig.UpdateNodesConfigAction(this.devTreeSvc.prepareNodesConfig()));
+  }
+
+  onClickCheckbox(event) {
+    event.stopPropagation();
+  }
+
+  check(node, $event) {
+    this.devTreeSvc.updateChildNodesCheckBox(node, $event.checked);
+    this.devTreeSvc.updateParentNodesCheckBox(node.parent);
+    this.devListSvc.devicesDataSource.next(map(this.devTreeSvc.getCheckedNodes(), (node) => node.data.id));
+
+    this.store.dispatch(new treeConfig.UpdateNodesConfigAction(this.devTreeSvc.prepareNodesConfig()));
+  }
+
+  toggleAll() {
+    this.devTreeSvc.getTreeModel().doForAll((node) => {
+      if (!node.isLeaf) {
+        node.data.checked = this.checkAllState;
+        node.data.indeterminate = false;
+      }
+    });
+    this.devListSvc.devicesDataSource.next(map(this.devTreeSvc.getCheckedNodes(), (node) => node.data.id));
+    this.checkAllState = !this.checkAllState;
+  }
+
+}
